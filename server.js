@@ -171,3 +171,16 @@ app.get('/api/jobs', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.get('/api/jobs', async (req, res) => {
+  const jobs = await Job.find().sort({ postedAt: -1 });
+  res.json(jobs.map(j => ({
+    id: j._id,
+    title: j.title,
+    description: j.description,
+    company: j.company,
+    location: j.location,
+    salary: j.salary,
+    postedAt: j.postedAt
+  })));
+});
