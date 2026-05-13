@@ -121,3 +121,33 @@ app.post('/api/jobs/:id/apply', verifyToken, requireJobseeker, async (req, res) 
 // ==============================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+// ==============================
+// AUTH ROUTES (RESTORE)
+// ==============================
+app.post('/api/signup', async (req, res) => {
+  const { email, password, role } = req.body;
+
+  const exists = await User.findOne({ email });
+  if (exists) return res.status(400).json({ error: 'Email exists' });
+
+  const user = await User.create({ email, password, role });
+  res.json({ message: 'User created', user });
+});
+
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: 'Invalid login' });
+  }
+
+  const token = jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET || 'secretkey',
+    { expiresIn: '1h' }
+  );
+
+  res.json({ token, role: user.role });
+});
