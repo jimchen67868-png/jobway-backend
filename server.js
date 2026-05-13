@@ -3,7 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 app.use(bodyParser.json());
@@ -156,3 +157,7 @@ app.post('/api/jobs/:id/apply', verifyToken, async (req, res) => {
 // ==============================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.get("/api/jobs", async (req, res) => {
+  const jobs = await Job.find().sort({ postedAt: -1 });
+  res.json(jobs);
+});
