@@ -114,17 +114,23 @@ app.post('/api/login', async (req, res) => {
 // JOB ROUTE (FIXED)
 // ==============================
 app.post('/api/jobs', verifyToken, async (req, res) => {
+  try {
     const user = await User.findById(req.userId);
 
-    if (!user || user.role !== 'employer') {
-      if (user.role !== 'employer') { return res.status(403).json({ error: 'Only employers can post jobs' }); }
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-  try {
-    const { title, description, company, location, salary } = req.body;
+    if (user.role !== 'employer') {
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
 
-    if (typeof salary !== 'number') {
-      return res.status(400).json({ error: 'Salary must be number' });
+    let { title, description, company, location, salary } = req.body;
+
+    salary = Number(salary);
+
+    if (isNaN(salary)) {
+      return res.status(400).json({ error: 'Salary must be valid number' });
     }
 
     const job = await Job.create({
@@ -136,45 +142,51 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
       postedBy: req.userId
     });
 
-    res.status(201).json({
-      message: 'Job posted successfully',
-      job
-    });
-
+    res.status(201).json(job);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
   }
 });
 
 // ==============================
 // APPLY JOB
 // ==============================
-app.post('/api/jobs/:id/apply', verifyToken, async (req, res) => {
-  await Application.create({
-    jobId: req.params.id,
-    applicantId: req.userId
-  });
-
-  res.json({ message: 'Applied' });
-});
-
-// ==============================
-// START SERVER
-// ==============================
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
-app.get("/api/jobs", async (req, res) => {
-  const jobs = await Job.find().sort({ postedAt: -1 });
-  res.json(jobs);
-});
-
-// GET ALL JOBS
-app.get('/api/jobs', async (req, res) => {
+app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
-    const jobs = await Job.find().sort({ postedAt: -1 });
-    res.json(jobs);
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.role !== 'employer') {
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
+
+    let { title, description, company, location, salary } = req.body;
+
+    salary = Number(salary);
+
+    if (isNaN(salary)) {
+      return res.status(400).json({ error: 'Salary must be valid number' });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      company,
+      location,
+      salary,
+      postedBy: req.userId
+    });
+
+    res.status(201).json(job);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
   }
 });
 
@@ -206,15 +218,20 @@ app.get('/api/jobs', async (req, res) => {
 
 // PATCH: FIX JOB CREATION (ANDROID SAFE)
 app.post('/api/jobs', verifyToken, async (req, res) => {
+  try {
     const user = await User.findById(req.userId);
 
-      if (user.role !== 'employer') { return res.status(403).json({ error: 'Only employers can post jobs' }); }
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-  try {
+    if (user.role !== 'employer') {
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
+
     let { title, description, company, location, salary } = req.body;
 
-    salary = Number(salary); // 🔥 FIX HERE
+    salary = Number(salary);
 
     if (isNaN(salary)) {
       return res.status(400).json({ error: 'Salary must be valid number' });
@@ -229,13 +246,11 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
       postedBy: req.userId
     });
 
-    res.status(201).json({
-      message: 'Job posted successfully',
-      job
-    });
-
+    res.status(201).json(job);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
   }
 });
 
