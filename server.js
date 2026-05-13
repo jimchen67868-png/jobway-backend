@@ -110,29 +110,11 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ==============================
-// JOB ROUTE (FIXED)
-// ==============================
-  }
-});
 
-app.get('/api/jobs', async (req, res) => {
-  const jobs = await Job.find().sort({ postedAt: -1 });
-  res.json(jobs.map(j => ({
-    id: j._id,
-    title: j.title,
-    description: j.description,
-    company: j.company,
-    location: j.location,
-    salary: j.salary,
-    postedAt: j.postedAt
-  })));
-});
 
 // ==============================
-// FIX: GET JOBS + SAFE SALARY
+// CLEAN JOB ROUTE
 // ==============================
-
 app.get('/api/jobs', async (req, res) => {
   try {
     const jobs = await Job.find().sort({ postedAt: -1 });
@@ -142,47 +124,11 @@ app.get('/api/jobs', async (req, res) => {
   }
 });
 
-// PATCH: FIX JOB CREATION (ANDROID SAFE)
-  }
-});
-
-
 // ==============================
-// CLEAN JOB ROUTE (FIXED)
+// START SERVER
 // ==============================
-app.post('/api/jobs', verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
+const PORT = process.env.PORT || 3000;
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.role !== 'employer') {
-      return res.status(403).json({ error: 'Only employers can post jobs' });
-    }
-
-    let { title, description, company, location, salary } = req.body;
-
-    salary = Number(salary);
-
-    if (isNaN(salary)) {
-      return res.status(400).json({ error: 'Salary must be valid number' });
-    }
-
-    const job = await Job.create({
-      title,
-      description,
-      company,
-      location,
-      salary,
-      postedBy: req.userId
-    });
-
-    res.status(201).json(job);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
-
