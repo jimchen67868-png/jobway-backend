@@ -34,15 +34,24 @@ const Job = mongoose.model('Job', new mongoose.Schema({
   postedAt: { type: Date, default: Date.now }
 }));
 
+const Application = mongoose.model('Application', new mongoose.Schema({
+  jobId: mongoose.Schema.Types.ObjectId,
+  applicantId: mongoose.Schema.Types.ObjectId,
+  appliedAt: { type: Date, default: Date.now }
+}));
+
 // ==============================
-// AUTH MIDDLEWARE (FIXED)
+// AUTH MIDDLEWARE
 // ==============================
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization;
   if (!token) return res.status(401).json({ error: 'No token' });
 
   try {
-    const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET || 'secretkey');
+    const decoded = jwt.verify(
+      token.replace('Bearer ', ''),
+      process.env.JWT_SECRET || 'secretkey'
+    );
     req.userId = decoded.id;
     next();
   } catch (e) {
@@ -50,104 +59,100 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// IMPORTANT FIX: force role check properly
-const requireEmployer = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    if (user.role !== 'employer') {
-      return res.status(403).json({ error: 'ONLY_EMPLOYER_CAN_POST_JOBS' });
-    }
-
-    req.user = user;
-    next();
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-const requireJobseeker = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    if (user.role !== 'jobseeker') {
-      return res.status(403).json({ error: 'ONLY_JOBSEEKER_ALLOWED' });
-    }
-
-    req.user = user;
-    next();
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-};
-
 // ==============================
-// JOB ROUTE (STRICT FIX)
+// AUTH ROUTES (ANDROID SAFE)
 // ==============================
-app.post('/api/jobs', verifyToken, requireEmployer, async (req, res) => {
-  const { title, description, company, location, salary } = req.body;
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
 
-  if (typeof salary !== 'number') {
-    return res.status(400).json({ error: 'Salary must be NUMBER' });
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ error: 'Email exists' });
+
+    await User.create({ email, password, role });
+
+    res.json({ message: 'User created' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  const job = await Job.create({
-    title,
-    description,
-    company,
-    location,
-    salary,
-    postedBy: req.userId
-  });
-
-  res.status(201).json({ message: 'Job created', job });
 });
 
-// APPLY (ONLY JOBSEEKER)
-app.post('/api/jobs/:id/apply', verifyToken, requireJobseeker, async (req, res) => {
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid login' });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'secretkey',
+      { expiresIn: '1h' }
+    );
+
+    // ✅ ANDROID COMPATIBLE RESPONSE (IMPORTANT)
+    res.json({
+      token,
+      role: user.role,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==============================
+// JOB ROUTE (FIXED)
+// ==============================
+app.post('/api/jobs', verifyToken, async (req, res) => {
+  try {
+    const { title, description, company, location, salary } = req.body;
+
+    if (typeof salary !== 'number') {
+      return res.status(400).json({ error: 'Salary must be number' });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      company,
+      location,
+      salary,
+      postedBy: req.userId
+    });
+
+    res.status(201).json({
+      message: 'Job posted successfully',
+      job
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==============================
+// APPLY JOB
+// ==============================
+app.post('/api/jobs/:id/apply', verifyToken, async (req, res) => {
+  await Application.create({
+    jobId: req.params.id,
+    applicantId: req.userId
+  });
+
   res.json({ message: 'Applied' });
 });
 
 // ==============================
-// START
+// START SERVER
 // ==============================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
-
-// ==============================
-// AUTH ROUTES (RESTORE)
-// ==============================
-app.post('/api/signup', async (req, res) => {
-  const { email, password, role } = req.body;
-
-  const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ error: 'Email exists' });
-
-  const user = await User.create({ email, password, role });
-  res.json({ message: 'User created', user });
-});
-
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  const user = await User.findOne({ email });
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: 'Invalid login' });
-  }
-
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET || 'secretkey',
-    { expiresIn: '1h' }
-  );
-
-  res.json({ token, role: user.role });
-});
