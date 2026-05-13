@@ -161,3 +161,13 @@ app.get("/api/jobs", async (req, res) => {
   const jobs = await Job.find().sort({ postedAt: -1 });
   res.json(jobs);
 });
+
+// GET ALL JOBS
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const jobs = await Job.find().sort({ postedAt: -1 });
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
