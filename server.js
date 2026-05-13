@@ -184,3 +184,47 @@ app.get('/api/jobs', async (req, res) => {
     postedAt: j.postedAt
   })));
 });
+
+// ==============================
+// FIX: GET JOBS + SAFE SALARY
+// ==============================
+
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const jobs = await Job.find().sort({ postedAt: -1 });
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH: FIX JOB CREATION (ANDROID SAFE)
+app.post('/api/jobs', verifyToken, async (req, res) => {
+  try {
+    let { title, description, company, location, salary } = req.body;
+
+    salary = Number(salary); // 🔥 FIX HERE
+
+    if (isNaN(salary)) {
+      return res.status(400).json({ error: 'Salary must be valid number' });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      company,
+      location,
+      salary,
+      postedBy: req.userId
+    });
+
+    res.status(201).json({
+      message: 'Job posted successfully',
+      job
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
