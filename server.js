@@ -114,6 +114,11 @@ app.post('/api/login', async (req, res) => {
 // JOB ROUTE (FIXED)
 // ==============================
 app.post('/api/jobs', verifyToken, async (req, res) => {
+    const user = await User.findById(req.userId);
+
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
+
   try {
     const { title, description, company, location, salary } = req.body;
 
@@ -200,6 +205,11 @@ app.get('/api/jobs', async (req, res) => {
 
 // PATCH: FIX JOB CREATION (ANDROID SAFE)
 app.post('/api/jobs', verifyToken, async (req, res) => {
+    const user = await User.findById(req.userId);
+
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
+
   try {
     let { title, description, company, location, salary } = req.body;
 
