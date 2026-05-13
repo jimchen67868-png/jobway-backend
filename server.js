@@ -117,9 +117,7 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (user.role !== 'employer') {
       return res.status(403).json({ error: 'Only employers can post jobs' });
@@ -157,9 +155,7 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (user.role !== 'employer') {
       return res.status(403).json({ error: 'Only employers can post jobs' });
@@ -221,9 +217,7 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (user.role !== 'employer') {
       return res.status(403).json({ error: 'Only employers can post jobs' });
