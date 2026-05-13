@@ -113,73 +113,6 @@ app.post('/api/login', async (req, res) => {
 // ==============================
 // JOB ROUTE (FIXED)
 // ==============================
-app.post('/api/jobs', verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    if (user.role !== 'employer') {
-      return res.status(403).json({ error: 'Only employers can post jobs' });
-    }
-
-    let { title, description, company, location, salary } = req.body;
-
-    salary = Number(salary);
-
-    if (isNaN(salary)) {
-      return res.status(400).json({ error: 'Salary must be valid number' });
-    }
-
-    const job = await Job.create({
-      title,
-      description,
-      company,
-      location,
-      salary,
-      postedBy: req.userId
-    });
-
-    res.status(201).json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-
-// ==============================
-// APPLY JOB
-// ==============================
-app.post('/api/jobs', verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    if (user.role !== 'employer') {
-      return res.status(403).json({ error: 'Only employers can post jobs' });
-    }
-
-    let { title, description, company, location, salary } = req.body;
-
-    salary = Number(salary);
-
-    if (isNaN(salary)) {
-      return res.status(400).json({ error: 'Salary must be valid number' });
-    }
-
-    const job = await Job.create({
-      title,
-      description,
-      company,
-      location,
-      salary,
-      postedBy: req.userId
-    });
-
-    res.status(201).json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
   }
 });
 
@@ -210,11 +143,20 @@ app.get('/api/jobs', async (req, res) => {
 });
 
 // PATCH: FIX JOB CREATION (ANDROID SAFE)
+  }
+});
+
+
+// ==============================
+// CLEAN JOB ROUTE (FIXED)
+// ==============================
 app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     if (user.role !== 'employer') {
       return res.status(403).json({ error: 'Only employers can post jobs' });
@@ -238,10 +180,9 @@ app.post('/api/jobs', verifyToken, async (req, res) => {
     });
 
     res.status(201).json(job);
+
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
   }
 });
 
