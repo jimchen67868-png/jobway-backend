@@ -132,3 +132,43 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
+
+// ==============================
+// POST JOB (EMPLOYER ONLY)
+// ==============================
+app.post('/api/jobs', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.role || user.role.toLowerCase() !== 'employer') {
+      return res.status(403).json({ error: 'Only employers can post jobs' });
+    }
+
+    let { title, description, company, location, salary } = req.body;
+
+    salary = Number(salary);
+
+    if (isNaN(salary)) {
+      return res.status(400).json({ error: 'Salary must be valid number' });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      company,
+      location,
+      salary,
+      postedBy: req.userId
+    });
+
+    res.status(201).json(job);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
