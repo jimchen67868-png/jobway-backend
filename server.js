@@ -58,4 +58,3 @@ app.post('/api/login', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on", PORT));
 
-app.get("/debug-user", async (req,res)=>{ const u=await User.findOne({email:"jimchen6786@gmail.com"}); res.json(u||{}); });

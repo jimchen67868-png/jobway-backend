@@ -1,0 +1,2 @@
+Server running on 5000
+Connected to MongoDB
