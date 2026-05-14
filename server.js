@@ -1,20 +1,18 @@
 require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
 // ==============================
-// DB
+// DB CONNECT
 // ==============================
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error(err));
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log(err));
 
 // ==============================
 // MODELS
@@ -25,150 +23,163 @@ const User = mongoose.model('User', new mongoose.Schema({
   role: String
 }));
 
+const CompanyProfile = mongoose.model('CompanyProfile', new mongoose.Schema({
+  userId: String,
+  companyName: String,
+  industry: String,
+  website: String,
+  location: String,
+  description: String,
+  logo: String
+}, { timestamps: true }));
+
+const JobseekerProfile = mongoose.model('JobseekerProfile', new mongoose.Schema({
+  userId: String,
+  fullName: String,
+  phone: String,
+  skills: String,
+  experience: String,
+  resumeUrl: String
+}, { timestamps: true }));
+
 const Job = mongoose.model('Job', new mongoose.Schema({
   title: String,
   description: String,
-  company: String,
+  companyId: String,
   location: String,
   salary: Number,
-  postedBy: mongoose.Schema.Types.ObjectId,
-  postedAt: { type: Date, default: Date.now }
+  postedBy: String,
+  createdAt: { type: Date, default: Date.now }
 }));
 
 const Application = mongoose.model('Application', new mongoose.Schema({
-  jobId: mongoose.Schema.Types.ObjectId,
-  applicantId: mongoose.Schema.Types.ObjectId,
-  appliedAt: { type: Date, default: Date.now }
+  jobId: String,
+  userId: String,
+  resumeUrl: String,
+  status: { type: String, default: "pending" }
 }));
 
 // ==============================
 // AUTH MIDDLEWARE
 // ==============================
-const verifyToken = (req, res, next) => {
+function verifyToken(req, res, next) {
   const token = req.headers.authorization;
-  if (!token) return res.status(401).json({ error: 'No token' });
+  if (!token) return res.status(401).json({ error: "No token" });
 
   try {
-    const decoded = jwt.verify(
-      token.replace('Bearer ', ''),
-      process.env.JWT_SECRET || 'secretkey'
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret");
     req.userId = decoded.id;
+    req.role = decoded.role;
     next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Invalid token' });
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
   }
-};
+}
 
 // ==============================
-// AUTH ROUTES (ANDROID SAFE)
-// ==============================
-app.post('/api/signup', async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
-
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ error: 'Email exists' });
-
-    await User.create({ email, password, role });
-
-    res.json({ message: 'User created' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (!user || user.password !== password) {
-      return res.status(401).json({ error: 'Invalid login' });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'secretkey',
-      { expiresIn: '1h' }
-    );
-
-    // ✅ ANDROID COMPATIBLE RESPONSE (IMPORTANT)
-    res.json({
-      token,
-      role: user.role,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
-// ==============================
-// CLEAN JOB ROUTE
-// ==============================
-app.get('/api/jobs', async (req, res) => {
-  try {
-    const jobs = await Job.find().sort({ postedAt: -1 });
-    res.json(jobs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ==============================
-// START SERVER
-// ==============================
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
-});
-
-// ==============================
-// POST JOB (EMPLOYER ONLY)
+// JOBS
 // ==============================
 app.post('/api/jobs', verifyToken, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (!user.role || user.role.toLowerCase() !== 'employer') {
-      return res.status(403).json({ error: 'Only employers can post jobs' });
-    }
-
-    let { title, description, company, location, salary } = req.body;
-
-    salary = Number(salary);
-
-    if (isNaN(salary)) {
-      return res.status(400).json({ error: 'Salary must be valid number' });
+    if (req.role !== "employer") {
+      return res.status(403).json({ error: "Only employers can post jobs" });
     }
 
     const job = await Job.create({
-      title,
-      description,
-      company,
-      location,
-      salary,
+      ...req.body,
       postedBy: req.userId
     });
 
     res.status(201).json(job);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+app.get('/api/jobs', async (req, res) => {
+  const jobs = await Job.find().sort({ createdAt: -1 });
+  res.json(jobs);
+});
+
+// ==============================
+// COMPANY PROFILE
+// ==============================
+app.post('/api/company', verifyToken, async (req, res) => {
+  if (req.role !== "employer") {
+    return res.status(403).json({ error: "Only employers" });
+  }
+
+  const company = await CompanyProfile.findOneAndUpdate(
+    { userId: req.userId },
+    req.body,
+    { upsert: true, new: true }
+  );
+
+  res.json(company);
+});
+
+// ==============================
+// JOBSEEKER PROFILE
+// ==============================
+app.post('/api/profile', verifyToken, async (req, res) => {
+  if (req.role !== "jobseeker") {
+    return res.status(403).json({ error: "Only jobseekers" });
+  }
+
+  const profile = await JobseekerProfile.findOneAndUpdate(
+    { userId: req.userId },
+    req.body,
+    { upsert: true, new: true }
+  );
+
+  res.json(profile);
+});
+
+// ==============================
+// RESUME UPLOAD
+// ==============================
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
+
+app.post('/api/profile/resume', verifyToken, upload.single('resume'), async (req, res) => {
+  if (req.role !== "jobseeker") {
+    return res.status(403).json({ error: "Only jobseekers" });
+  }
+
+  const profile = await JobseekerProfile.findOneAndUpdate(
+    { userId: req.userId },
+    { resumeUrl: req.file.path },
+    { new: true }
+  );
+
+  res.json(profile);
+});
+
+// ==============================
+// APPLY JOB
+// ==============================
+app.post('/api/jobs/:id/apply', verifyToken, async (req, res) => {
+  if (req.role !== "jobseeker") {
+    return res.status(403).json({ error: "Only jobseekers" });
+  }
+
+  const appData = await Application.create({
+    jobId: req.params.id,
+    userId: req.userId,
+    resumeUrl: req.body.resumeUrl
+  });
+
+  res.json(appData);
+});
+
+// ==============================
+// SERVER START
+// ==============================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on", PORT));
