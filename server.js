@@ -64,7 +64,7 @@ const Application = mongoose.model('Application', new mongoose.Schema({
 // AUTH MIDDLEWARE
 // ==============================
 function verifyToken(req, res, next) {
-  const token = req.headers.authorization;
+  const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: "No token" });
 
   try {
@@ -188,34 +188,3 @@ app.listen(PORT, () => console.log("Server running on", PORT));
 // ==============================
 // LOGIN FIX (BCRYPTJS SAFE)
 // ==============================
-app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: "Invalid login" });
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).json({ error: "Invalid login" });
-
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "1h" }
-    );
-
-    res.json({
-      token,
-      role: user.role,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
