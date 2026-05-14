@@ -49,7 +49,15 @@ app.post('/api/login', async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    res.json({ token, role: user.role });
+    res.json({
+      token,
+      role: user.role,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
