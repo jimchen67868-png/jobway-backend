@@ -188,3 +188,35 @@ app.listen(PORT, () => console.log("Server running on", PORT));
 // ==============================
 // LOGIN FIX (BCRYPTJS SAFE)
 // ==============================
+
+// ==============================
+// SIGNUP FIX (bcryptjs safe)
+// ==============================
+app.post('/api/signup', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+
+    const { email, password, role } = req.body;
+
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ error: "User already exists" });
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email,
+      password: hash,
+      role: role || "jobseeker"
+    });
+
+    res.status(201).json({
+      id: user._id,
+      email: user.email,
+      role: user.role
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
