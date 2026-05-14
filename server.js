@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -183,3 +184,55 @@ app.post('/api/jobs/:id/apply', verifyToken, async (req, res) => {
 // ==============================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on", PORT));
+
+// ==============================
+// REGISTER (BCRYPT SECURE)
+// ==============================
+app.post('/api/register', async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ error: "User exists" });
+
+    const hashed = await bcrypt.hash(password, 12);
+
+    const user = await User.create({
+      email,
+      password: hashed,
+      role
+    });
+
+    res.json({ id: user._id, email: user.email, role: user.role });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==============================
+// LOGIN (BCRYPT SECURE)
+// ==============================
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: "Invalid login" });
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(401).json({ error: "Invalid login" });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "1h" }
+    );
+
+    res.json({ token, role: user.role });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
