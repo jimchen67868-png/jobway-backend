@@ -37,19 +37,31 @@ app.post('/api/signup', async (req, res) => {
 // LOGIN
 app.post('/api/login', async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user) return res.status(401).json({ error: "Invalid login" });
+    const { email, password } = req.body;
 
-    const ok = await bcrypt.compare(req.body.password, user.password);
-    if (!ok) return res.status(401).json({ error: "Invalid login" });
+    const user = await User.findOne({ email });
+
+      return res.status(401).json({ error: 'Invalid login' });
+    }
+
+    let ok = false;
+
+    if (user.password && user.password.startsWith('$2')) {
+      ok = bcrypt.compareSync(password, user.password);
+    } else {
+      ok = password === user.password;
+    }
+
+      return res.status(401).json({ error: 'Invalid login' });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "1h" }
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '1h' }
     );
 
-    res.json({
+    return res.json({
       token,
       role: user.role,
       user: {
@@ -58,8 +70,9 @@ app.post('/api/login', async (req, res) => {
         role: user.role
       }
     });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
