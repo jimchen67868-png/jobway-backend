@@ -190,51 +190,41 @@ error: err.message
 });
 
 app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+try {
+const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+const user = await User.findOne({ email });  
 
-    if (!user) {
-      return res.status(401).json({
-        error: 'Invalid email or password'
-      });
-    }
-
-    let ok = false;
-
-    if (user.password && user.password.startsWith('$2')) {
-      ok = require('bcryptjs').compareSync(password, user.password);
-    } else {
-      ok = password === user.password;
-    }
-
-    if (!ok) {
-      return res.status(401).json({
-        error: 'Invalid email or password'
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role
-      },
-      process.env.JWT_SECRET || 'secretkey',
-      { expiresIn: '1h' }
-    );
-
-    res.json({
-      token,
-      role: user.role,
-      userId: user._id
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      error: err.message
+  if (!user) {
+    return res.status(401).json({
+      error: "Invalid email or password"
     });
   }
+
+  let ok = false;
+
+  if (user.password && user.password.startsWith("$2")) {
+    ok = require("bcryptjs").compareSync(password, user.password);
+  } else {
+    ok = password === user.password;
+  }
+
+  if (!ok) {
+    return res.status(401).json({
+      error: "Invalid email or password"
+    });
+  }
+
+const token = jwt.sign(  
+  { id: user._id },  
+  process.env.JWT_SECRET || 'secretkey',  
+  { expiresIn: '1h' }  
+);  
+
+res.json({  
+  token,  
+  role: user.role,  
+  userId: user._id  
 });
 
 } catch (err) {
